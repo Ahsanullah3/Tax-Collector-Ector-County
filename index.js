@@ -33,7 +33,7 @@ async function saveWithRetry(sheet, retries = 3) {
 // 2. CORE SCRAPER ENGINE
 // =========================================================
 async function runScraper() {
-    console.log("🚀 Starting Ector CAD Property Scraper...");
+    console.log("🚀 Starting Ector CAD Property Scraper (Z-Status Edition)...");
 
     // Authenticate with Google Sheets using the JSON secret
     const creds = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
@@ -47,10 +47,10 @@ async function runScraper() {
     await doc.loadInfo();
     const sheet = doc.sheetsByIndex[0];
 
-    // Auto-expand columns to accommodate data up to Column AF (Index 31 -> total 32 columns)
-    if (sheet.columnCount < 32) {
-        console.log(`📏 Expanding sheet columns from ${sheet.columnCount} to 32...`);
-        await sheet.resize({ rowCount: sheet.rowCount, columnCount: 32 });
+    // Auto-expand columns to accommodate data up to Column AG (Index 32 -> total 33 columns)
+    if (sheet.columnCount < 33) {
+        console.log(`📏 Expanding sheet columns from ${sheet.columnCount} to 33...`);
+        await sheet.resize({ rowCount: sheet.rowCount, columnCount: 33 });
     }
 
     // Load cell tracking window into memory
@@ -75,8 +75,8 @@ async function runScraper() {
         // Assuming URLs are in Column A (Index 0)
         const url = sheet.getCell(rowIndex, 0).value;
         
-        // Status tracking in Column N (Index 13)
-        const status = sheet.getCell(rowIndex, 13).value || "";
+        // Status tracking moved to Column Z (Index 25)
+        const status = sheet.getCell(rowIndex, 25).value || "";
 
         if (!url) continue; // Skip empty rows
         if (status.includes("✅")) continue; // Skip already successfully processed items
@@ -114,7 +114,7 @@ async function runScraper() {
             const pageTitle = await page.title();
             if (pageTitle.includes("Pardon Our Interruption") || pageTitle.includes("Robot Check")) {
                 console.log(`❌ BLOCKED: IP has been flagged on Row ${actualRowNumber}`);
-                sheet.getCell(rowIndex, 13).value = "❌ BLOCKED (IP Burned)";
+                sheet.getCell(rowIndex, 25).value = "❌ BLOCKED (IP Burned)"; // Z
                 await saveWithRetry(sheet);
                 await page.close();
                 continue;
@@ -146,27 +146,28 @@ async function runScraper() {
                 };
             });
 
-            // 5. Stage variables to local memory cache (Mapping to Columns Z through AF)
-            const baseIndex = 25; // Index 25 corresponds to Column Z
+            // 5. Stage variables to local memory cache 
+            // Mark Status in Column Z (Index 25)
+            sheet.getCell(rowIndex, 25).value = "✅ SUCCESS";                                 
 
-            sheet.getCell(rowIndex, baseIndex + 0).value = extractedData.currentYearLevy;       // Z
-            sheet.getCell(rowIndex, baseIndex + 1).value = extractedData.currentYearDue;        // AA
-            sheet.getCell(rowIndex, baseIndex + 2).value = extractedData.priorYearDue;          // AB
-            sheet.getCell(rowIndex, baseIndex + 3).value = extractedData.totalAmountDue;        // AC
-            sheet.getCell(rowIndex, baseIndex + 4).value = extractedData.mailingAddress;        // AD
-            sheet.getCell(rowIndex, baseIndex + 5).value = extractedData.propertySiteAddress;   // AE
-            sheet.getCell(rowIndex, baseIndex + 6).value = extractedData.legalDescription;      // AF
+            // Map details to Columns AA through AG (Indexes 26-32)
+            const baseIndex = 26; // Index 26 corresponds to Column AA
+
+            sheet.getCell(rowIndex, baseIndex + 0).value = extractedData.currentYearLevy;       // AA
+            sheet.getCell(rowIndex, baseIndex + 1).value = extractedData.currentYearDue;        // AB
+            sheet.getCell(rowIndex, baseIndex + 2).value = extractedData.priorYearDue;          // AC
+            sheet.getCell(rowIndex, baseIndex + 3).value = extractedData.totalAmountDue;        // AD
+            sheet.getCell(rowIndex, baseIndex + 4).value = extractedData.mailingAddress;        // AE
+            sheet.getCell(rowIndex, baseIndex + 5).value = extractedData.propertySiteAddress;   // AF
+            sheet.getCell(rowIndex, baseIndex + 6).value = extractedData.legalDescription;      // AG
             
-            // Mark Status in Column N (Index 13)
-            sheet.getCell(rowIndex, 13).value = "✅ SUCCESS";                                 
-
             stagedCellsToSave.push(rowIndex);
             console.log(`✔️ Staged Row ${actualRowNumber} | Total Due: ${extractedData.totalAmountDue || 'N/A'} | Levy: ${extractedData.currentYearLevy || 'N/A'}`);
             scrapeCount++;
 
         } catch (e) {
             console.error(`🛑 Error on Row ${actualRowNumber}: ${e.message}`);
-            sheet.getCell(rowIndex, 13).value = "🛑 Error: " + e.message;
+            sheet.getCell(rowIndex, 25).value = "🛑 Error: " + e.message; // Write error to Z
             stagedCellsToSave.push(rowIndex);
         } finally {
             await page.close();
